@@ -9,18 +9,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Install (full workspace, repo root)
+        run: npm install --no-audit --no-fund && npm rebuild
       - name: Patch config (phone-friendly output)
         working-directory: apps/mobile
         run: |
           node -e "const fs=require('fs');let s=fs.readFileSync('vite.config.ts','utf8');const a=s;s=s.replace(/sourcemap:\s*'inline'/,'sourcemap: false').replace(/\n\s*rollupOptions:\s*\{\s*output:\s*\{\s*inlineDynamicImports:\s*true\s*\}\s*\},?/,'').replace(/minify:\s*false/,'minify: true');if(s===a)throw new Error('patch did not apply');fs.writeFileSync('vite.config.ts',s);console.log('patched ok')"
-      - name: Install
-        working-directory: apps/mobile
-        run: npm install --no-audit --no-fund && npm rebuild
       - name: Build renderer
         working-directory: apps/mobile
-        run: npx vite build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          set +e
+          npx vite build > /tmp/build.log 2>&1
+          code=$?
+          echo "exit=$code log_bytes=$(wc -c < /tmp/build.log)"
+          tail -80 /tmp/build.log
+          cp /tmp/build.log "$GITHUB_WORKSPACE/build-last.log" || true
+          exit $code
+      - name: Publish log on failure
+        if: failure()
+        continue-on-error: true
+        run: |
+          git config user.email ci@local
+          git config user.name ci
+          git add build-last.log
+          git commit -m "ci: build log (failure)" --no-verify
+          git push
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: renderer-dist
           path: apps/mobile/dist
-          
