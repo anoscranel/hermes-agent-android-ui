@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: Install (full workspace, fresh resolution — PR lockfile is broken)
-        run: rm -f package-lock.json && npm install --no-audit --no-fund && npm rebuild && ls node_modules/style-mod >/dev/null && echo style-mod-ok
+        run: rm -f package-lock.json && npm install --no-audit --no-fund --legacy-peer-deps && npm rebuild && ls node_modules/style-mod >/dev/null && echo style-mod-ok
       - name: Patch config (phone-friendly output)
         working-directory: apps/mobile
         run: |
