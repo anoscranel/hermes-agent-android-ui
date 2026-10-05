@@ -1,0 +1,26 @@
+name: build-renderer
+on: workflow_dispatch
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Patch config (phone-friendly output)
+        working-directory: apps/mobile
+        run: |
+          node -e "const fs=require('fs');let s=fs.readFileSync('vite.config.ts','utf8');const a=s;s=s.replace(/sourcemap:\s*'inline'/,'sourcemap: false').replace(/\n\s*rollupOptions:\s*\{\s*output:\s*\{\s*inlineDynamicImports:\s*true\s*\}\s*\},?/,'').replace(/minify:\s*false/,'minify: true');if(s===a)throw new Error('patch did not apply');fs.writeFileSync('vite.config.ts',s);console.log('patched ok')"
+      - name: Install
+        working-directory: apps/mobile
+        run: npm install --no-audit --no-fund && npm rebuild
+      - name: Build renderer
+        working-directory: apps/mobile
+        run: npx vite build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renderer-dist
+          path: apps/mobile/dist
+          
